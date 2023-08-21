@@ -449,8 +449,10 @@
 ;; --------------------------------------------------------
 
 (global-set-key (kbd "M-o") 'other-window)            ;; move point to other window
-;; (global-set-key (kbd "C-x C-e") 'eval-region)         ;; eval function before point
+(global-set-key (kbd "C-x C-e") 'eval-region)         ;; eval function before point
 (global-set-key (kbd "C-t") 'beginning-of-buffer)     ;; move point to start of active buffer
 (global-set-key (kbd "C-u") 'end-of-buffer)           ;; move point to end of active buffer
+(global-set-key (kbd "C-x g") 'magit-status)
+(global-set-key (kbd "C-.") 'ivy-switch-buffer)
 
 (define-key emacs-lisp-mode-map (kbd "C-x M-t") 'counsel-load-theme)
