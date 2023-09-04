@@ -6,8 +6,9 @@
 ;; --------------------------------------------------------
 (require 'package)    ; initialize package sources
 
-(add-to-list 'package-archives
-	     '("melpa" . "https://melpa.org/packages/") t)
+(setq package-archives '(("melpa" . "https://melpa.org/packages/")
+                         ("org" . "https://orgmode.org/elpa/")
+                         ("elpa" . "https://elpa.gnu.org/packages/")))
 
 (package-initialize)
 (unless package-archive-contents
@@ -118,52 +119,186 @@
 ;; Org Mode
 ;; --------------------------------------------------------
 
-(add-to-list 'load-path (expand-file-name "~/git/org-mode/lisp"))
-(add-to-list 'auto-mode-alist '("\\.\\(org\\|org_archive\\|txt\\)$" . org-mode))
-(require 'org)
+(defun drh/org-font-setup ()
+  ;; Replace list hyphen with dot
+  (font-lock-add-keywords 'org-mode
+                          '(("^ *\\([-]\\) "
+                             (0 (prog1 () (compose-region (match-beginning 1) (match-end 1) "•"))))))
 
-;;
+  ;; Set faces for heading levels
+  (dolist (face '((org-level-1 . 1.2)
+                  (org-level-2 . 1.1)
+                  (org-level-3 . 1.05)
+                  (org-level-4 . 1.0)
+                  (org-level-5 . 1.1)
+                  (org-level-6 . 1.1)
+                  (org-level-7 . 1.1)
+                  (org-level-8 . 1.1)))
+    (set-face-attribute (car face) nil :weight 'regular :height (cdr face)))
+
+  ;; Ensure that anything that should be fixed-pitch in Org files appears that way
+  (set-face-attribute 'org-block nil    :foreground nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-table nil    :inherit 'fixed-pitch)
+  (set-face-attribute 'org-formula nil  :inherit 'fixed-pitch)
+  (set-face-attribute 'org-code nil     :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-table nil    :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
+  (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
+  (set-face-attribute 'org-checkbox nil  :inherit 'fixed-pitch)
+  (set-face-attribute 'line-number nil :inherit 'fixed-pitch)
+  (set-face-attribute 'line-number-current-line nil :inherit 'fixed-pitch))
+
+(defun drh/org-mode-setup ()
+  (org-indent-mode)
+  (variable-pitch-mode 1)
+  (visual-line-mode 1))
+
+(use-package org
+  :pin org
+  :commands (org-capture org-agenda)
+  :hook (org-mode . drh/org-mode-setup)
+  :config
+  (setq org-ellipsis " ▾")
+
+  (setq org-agenda-start-with-log-mode t)
+  (setq org-log-done 'time)
+  (setq org-log-into-drawer t)
+
+  (setq org-agenda-files
+        '("~/projects/zettelkasten/tasks.org"
+	  "~/projects/active-projects/new-project-under-Dan.org"
+          "~/projects/zettelkasten/habits.org"))
+
+  (require 'org-habit)
+  (add-to-list 'org-modules 'org-habit)
+  (setq org-habit-graph-column 60)
+
+  (setq org-todo-keywords
+    '((sequence "TODO(t)" "NEXT(n)" "|" "DONE(d!)")
+      (sequence "BACKLOG(b)" "PLAN(p)" "READY(r)" "ACTIVE(a)" "REVIEW(v)" "WAIT(w@/!)" "HOLD(h)" "|" "COMPLETED(c)" "CANC(k@)")))
+
+  (setq org-refile-targets
+    '(("archive.org" :maxlevel . 1)
+      ("tasks.org" :maxlevel . 1)))
+
+  ;; Save Org buffers after refiling!
+  (advice-add 'org-refile :after 'org-save-all-org-buffers)
+
+  (setq org-tag-alist
+    '((:startgroup)
+       ; Put mutually exclusive tags here
+       (:endgroup)
+       ("@errand" . ?E)
+       ("@home" . ?H)
+       ("@work" . ?W)
+       ("agenda" . ?a)
+       ("planning" . ?p)
+       ("publish" . ?P)
+       ("batch" . ?b)
+       ("note" . ?n)
+       ("idea" . ?i)))
+
+  ;; Configure custom agenda views
+  (setq org-agenda-custom-commands
+   '(("d" "Dashboard"
+     ((agenda "" ((org-deadline-warning-days 7)))
+      (todo "NEXT"
+        ((org-agenda-overriding-header "Next Tasks")))
+      (tags-todo "agenda/ACTIVE" ((org-agenda-overriding-header "Active Projects")))))
+
+    ("n" "Next Tasks"
+     ((todo "NEXT"
+        ((org-agenda-overriding-header "Next Tasks")))))
+
+    ("W" "Work Tasks" tags-todo "+work-email")
+
+    ;; Low-effort next actions
+    ("e" tags-todo "+TODO=\"NEXT\"+Effort<15&+Effort>0"
+     ((org-agenda-overriding-header "Low Effort Tasks")
+      (org-agenda-max-todos 20)
+      (org-agenda-files org-agenda-files)))
+
+    ("w" "Workflow Status"
+     ((todo "WAIT"
+            ((org-agenda-overriding-header "Waiting on External")
+             (org-agenda-files org-agenda-files)))
+      (todo "REVIEW"
+            ((org-agenda-overriding-header "In Review")
+             (org-agenda-files org-agenda-files)))
+      (todo "PLAN"
+            ((org-agenda-overriding-header "In Planning")
+             (org-agenda-todo-list-sublevels nil)
+             (org-agenda-files org-agenda-files)))
+      (todo "BACKLOG"
+            ((org-agenda-overriding-header "Project Backlog")
+             (org-agenda-todo-list-sublevels nil)
+             (org-agenda-files org-agenda-files)))
+      (todo "READY"
+            ((org-agenda-overriding-header "Ready for Work")
+             (org-agenda-files org-agenda-files)))
+      (todo "ACTIVE"
+            ((org-agenda-overriding-header "Active Projects")
+             (org-agenda-files org-agenda-files)))
+      (todo "COMPLETED"
+            ((org-agenda-overriding-header "Completed Projects")
+             (org-agenda-files org-agenda-files)))
+      (todo "CANC"
+            ((org-agenda-overriding-header "Cancelled Projects")
+             (org-agenda-files org-agenda-files)))))))
+
+  (setq org-capture-templates
+    `(("t" "Tasks / Projects")
+      ("tt" "Task" entry (file+olp "~/Projects/Code/emacs-from-scratch/OrgFiles/Tasks.org" "Inbox")
+           "* TODO %?\n  %U\n  %a\n  %i" :empty-lines 1)
+
+      ("j" "Journal Entries")
+      ("jj" "Journal" entry
+           (file+olp+datetree "~/Projects/Code/emacs-from-scratch/OrgFiles/Journal.org")
+           "\n* %<%I:%M %p> - Journal :journal:\n\n%?\n\n"
+           ;; ,(dw/read-file-as-string "~/Notes/Templates/Daily.org")
+           :clock-in :clock-resume
+           :empty-lines 1)
+      ("jm" "Meeting" entry
+           (file+olp+datetree "~/Projects/Code/emacs-from-scratch/OrgFiles/Journal.org")
+           "* %<%I:%M %p> - %a :meetings:\n\n%?\n\n"
+           :clock-in :clock-resume
+           :empty-lines 1)
+
+      ("w" "Workflows")
+      ("we" "Checking Email" entry (file+olp+datetree "~/Projects/Code/emacs-from-scratch/OrgFiles/Journal.org")
+           "* Checking Email :email:\n\n%?" :clock-in :clock-resume :empty-lines 1)
+
+      ("m" "Metrics Capture")
+      ("mw" "Weight" table-line (file+headline "~/Projects/Code/emacs-from-scratch/OrgFiles/Metrics.org" "Weight")
+       "| %U | %^{Weight} | %^{Notes} |" :kill-buffer t)))
+
+  (define-key global-map (kbd "C-c j")
+    (lambda () (interactive) (org-capture nil "jj")))
+
+  (drh/org-font-setup))
+
+(use-package org-bullets
+  :hook (org-mode . org-bullets-mode)
+  :custom
+  (org-bullets-bullet-list '("◉" "○" "●" "○" "●" "○" "●")))
+
+(defun drh/org-mode-visual-fill ()
+  (setq visual-fill-column-width 100
+        visual-fill-column-center-text t)
+  (visual-fill-column-mode 1))
+  
 ;; Standard key bindings
 (global-set-key "\C-cl" 'org-store-link)
 (global-set-key "\C-ca" 'org-agenda)
 (global-set-key "\C-cb" 'org-iswitchb)
 
-;; Custom Key Bindings
-(global-set-key (kbd "<f12>") 'org-agenda)
-(global-set-key (kbd "<f5>") 'bh/org-todo)
-(global-set-key (kbd "<S-f5>") 'bh/widen)
-(global-set-key (kbd "<f7>") 'bh/set-truncate-lines)
-(global-set-key (kbd "<f8>") 'org-cycle-agenda-files)
-(global-set-key (kbd "<f9> <f9>") 'bh/show-org-agenda)
-(global-set-key (kbd "<f9> b") 'bbdb)
-(global-set-key (kbd "<f9> c") 'calendar)
-(global-set-key (kbd "<f9> f") 'boxquote-insert-file)
-(global-set-key (kbd "<f9> g") 'gnus)
-(global-set-key (kbd "<f9> h") 'bh/hide-other)
-(global-set-key (kbd "<f9> n") 'bh/toggle-next-task-display)
 
-(global-set-key (kbd "<f9> I") 'bh/punch-in)
-(global-set-key (kbd "<f9> O") 'bh/punch-out)
-
-(global-set-key (kbd "<f9> o") 'bh/make-org-scratch)
-
-(global-set-key (kbd "<f9> r") 'boxquote-region)
-(global-set-key (kbd "<f9> s") 'bh/switch-to-scratch)
-
-(global-set-key (kbd "<f9> t") 'bh/insert-inactive-timestamp)
-(global-set-key (kbd "<f9> T") 'bh/toggle-insert-inactive-timestamp)
-
-(global-set-key (kbd "<f9> v") 'visible-mode)
-(global-set-key (kbd "<f9> l") 'org-toggle-link-display)
-(global-set-key (kbd "<f9> SPC") 'bh/clock-in-last-task)
-(global-set-key (kbd "C-<f9>") 'previous-buffer)
-(global-set-key (kbd "M-<f9>") 'org-toggle-inline-images)
-(global-set-key (kbd "C-x n r") 'narrow-to-region)
-(global-set-key (kbd "C-<f10>") 'next-buffer)
-(global-set-key (kbd "<f11>") 'org-clock-goto)
-(global-set-key (kbd "C-<f11>") 'org-clock-in)
-(global-set-key (kbd "C-s-<f12>") 'bh/save-then-publish)
-(global-set-key (kbd "C-c c") 'org-capture)
+(defun drh/org-mode-setup ()
+  (org-indent-mode)
+  (variable-pitch-mode 1)
+  (auto-fill-mode 0)
+  (visual-line-mode  1))
 
 (defun bh/hide-other ()
   (interactive)
@@ -288,10 +423,22 @@
 
 (require 'org)
 
+;; --------------------------------------------------------
+;; Org Roam
+;; --------------------------------------------------------
+(use-package org-roam
+  :ensure t
+  :custom
+  (org-roam-directory "~/zettelkasten")
+  :bind (("C-c n l" . org-roam-buffer-toggle)
+	 ("C-c n f" . org-roam-node-find)
+	 ("C-c n i" . org-roam-node-insert))
+  :config
+  (org-roam-setup))
 
-
-
-;; tool for handling tasks involving parentheses and delimiters
+;; --------------------------------------------------------
+;; Paredit
+;; --------------------------------------------------------
 (use-package paredit
   :ensure t
   :config
@@ -319,28 +466,28 @@
 ;; --------------------------------------------------------
 
 ;; You will most likely need to adjust this font size for your system!
-(defvar efs/default-font-size 150)
-(defvar efs/default-variable-font-size 150)
+(defvar drh/default-font-size 150)
+(defvar drh/default-variable-font-size 150)
 
 
-(set-face-attribute 'default nil  :height efs/default-font-size)
+(set-face-attribute 'default nil  :height drh/default-font-size)
 
 ;; Set the fixed pitch face
-(set-face-attribute 'fixed-pitch nil :height efs/default-font-size)
+(set-face-attribute 'fixed-pitch nil :height drh/default-font-size)
 
 ;; Set the variable pitch face
-(set-face-attribute 'variable-pitch nil :height efs/default-variable-font-size :weight 'regular)
+(set-face-attribute 'variable-pitch nil :height drh/default-variable-font-size :weight 'regular)
 
 (use-package all-the-icons
   :if (display-graphic-p))
 
 
 ;; Make frame transparency overridable
-(defvar efs/frame-transparency '(94 . 94))
+(defvar drh/frame-transparency '(94 . 94))
 
 ;; Set frame transparency
-(set-frame-parameter (selected-frame) 'alpha efs/frame-transparency)
-(add-to-list 'default-frame-alist `(alpha . ,efs/frame-transparency))
+(set-frame-parameter (selected-frame) 'alpha drh/frame-transparency)
+(add-to-list 'default-frame-alist `(alpha . ,drh/frame-transparency))
 (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
 (add-to-list 'default-frame-alist '(fullscreen . maximized))
 
@@ -384,15 +531,16 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(org-agenda-files
+   '("/Users/dhadenx6/projects/zettelkasten/tasks.org" "/Users/dhadenx6/projects/zettelkasten/habits.org"))
  '(package-selected-packages
-   '(projectile hydra general all-the-icons uniquify-files uniquify counsel ivy-rich which-key doom-themes auto-package-update use-package smartparens rainbow-delimiters racket-mode pollen-mode paredit magit ivy doom-modeline command-log-mode)))
+   '(org-roam org-bullets forge projectile hydra general all-the-icons uniquify-files uniquify counsel ivy-rich which-key doom-themes auto-package-update use-package smartparens rainbow-delimiters racket-mode pollen-mode paredit magit ivy doom-modeline command-log-mode)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  )
-
 
 ;; --------------------------------------------------------
 ;; General
@@ -445,14 +593,18 @@
   (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
 
 ;; --------------------------------------------------------
+;; Forge
+;; --------------------------------------------------------
+;;(use-package forge
+;;  :after magit)
+
+;; --------------------------------------------------------
 ;; Global Key Bindings
 ;; --------------------------------------------------------
 
 (global-set-key (kbd "M-o") 'other-window)            ;; move point to other window
 (global-set-key (kbd "C-x C-e") 'eval-region)         ;; eval function before point
-(global-set-key (kbd "C-t") 'beginning-of-buffer)     ;; move point to start of active buffer
-(global-set-key (kbd "C-u") 'end-of-buffer)           ;; move point to end of active buffer
+(global-set-key (kbd "C-; t") 'beginning-of-buffer)     ;; move point to start of active buffer
+(global-set-key (kbd "C-; u") 'end-of-buffer)           ;; move point to end of active buffer
 (global-set-key (kbd "C-x g") 'magit-status)
 (global-set-key (kbd "C-.") 'ivy-switch-buffer)
-
-(define-key emacs-lisp-mode-map (kbd "C-x M-t") 'counsel-load-theme)
