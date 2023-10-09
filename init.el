@@ -421,7 +421,12 @@
 
 (setq org-refile-target-verify-function 'bh/verify-refile-target)
 
-(require 'org)
+(setq org-image-actual-width nil)
+
+;; (require 'org)
+
+
+
 
 ;; --------------------------------------------------------
 ;; Org Roam
@@ -437,13 +442,88 @@
   (org-roam-setup))
 
 ;; --------------------------------------------------------
+;; Org-Babel
+;; --------------------------------------------------------
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((python . t)
+   (shell . t)
+   (emacs-lisp . t)))
+
+(setq org-babel-python-command "python3")
+
+(setq python-shell-interpreter "/Users/dhadenx6/anaconda3/bin/python")
+
+(require 'org-tempo)  ;; Needed as of Org 9.2
+
+(add-to-list 'org-structure-template-alist '("sh" . "src shell"))
+(add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+(add-to-list 'org-structure-template-alist '("py" . "src python"))
+
+;; (org-babel-tangle)
+;; (org-babel-tangle-file "~/.emacs.d/init-new.el")
+
+;; --------------------------------------------------------
+;; Flycheck
+;; --------------------------------------------------------
+(use-package flycheck
+  :ensure t
+  :init (global-flycheck-mode))
+
+
+;; --------------------------------------------------------
+;; RipGrep
+;; --------------------------------------------------------
+(use-package rg)
+
+
+;; --------------------------------------------------------
+;; Company
+;; Purpose: Text Completion Framework
+;; --------------------------------------------------------
+(require 'company)
+
+(add-hook 'after-init-hook 'global-company-mode)
+
+;; --------------------------------------------------------
+;; Python
+;; --------------------------------------------------------
+(use-package python-black
+  :ensure t
+  :bind (("C-c b" . python-black-buffer)))
+
+(use-package pyvenv
+  :ensure t
+  :config
+  (pyvenv-mode 1))
+
+(use-package anaconda-mode
+  :ensure t
+  :bind (("C-c C-x" . next-error))
+  :config
+  (require 'pyvenv)
+  (add-hook 'python-mode-hook 'anaconda-mode))
+
+(use-package conda
+  :ensure t)
+(require 'conda)
+
+
+(conda-env-initialize-interactive-shells)
+(conda-env-autoactivate-mode t)
+(setq conda-env-home-directory (expand-file-name "~/anaconda3/")
+      conda-env-subdirectory "envs")
+
+(when (memq window-system '(mac ns x))
+  (exec-path-from-shell-initialize))
+
+;; --------------------------------------------------------
 ;; Paredit
 ;; --------------------------------------------------------
 (use-package paredit
   :ensure t
   :config
   (add-hook 'racket-mode-hook #'enable-paredit-mode))
-
 
 (add-to-list 'default-frame-alist '(fullscreen . maximized))
 (add-to-list 'custom-theme-load-path "~/.emacs.d/themes/")
@@ -534,7 +614,7 @@
  '(org-agenda-files
    '("/Users/dhadenx6/projects/zettelkasten/tasks.org" "/Users/dhadenx6/projects/zettelkasten/habits.org"))
  '(package-selected-packages
-   '(org-roam org-bullets forge projectile hydra general all-the-icons uniquify-files uniquify counsel ivy-rich which-key doom-themes auto-package-update use-package smartparens rainbow-delimiters racket-mode pollen-mode paredit magit ivy doom-modeline command-log-mode)))
+   '(exwm key-chord rg org-roam org-bullets forge projectile hydra general all-the-icons uniquify-files uniquify counsel ivy-rich which-key doom-themes auto-package-update use-package smartparens rainbow-delimiters racket-mode pollen-mode paredit magit ivy doom-modeline command-log-mode)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -608,3 +688,27 @@
 (global-set-key (kbd "C-; u") 'end-of-buffer)           ;; move point to end of active buffer
 (global-set-key (kbd "C-x g") 'magit-status)
 (global-set-key (kbd "C-.") 'ivy-switch-buffer)
+
+;; --------------------------------------------------------
+;; EXWM (Window Manager)
+;; --------------------------------------------------------
+(use-package exwm
+  :config
+  (setq exwm-workspace-number 5) ;; Set the default number of workspaces
+  (exwm-enable))
+
+;; --------------------------------------------------------
+;; Key Chords
+;; --------------------------------------------------------
+(use-package key-chord)
+(key-chord-mode 1)
+(key-chord-define-global "xf" 'counsel-find-file)
+(key-chord-define-global "df" 'ivy-switch-buffer)
+(key-chord-define-global "xs" 'save-buffer)
+(key-chord-define-global "aj" 'other-window)
+(key-chord-define-global "au" 'delete-other-windows)
+(key-chord-define-global "ai" 'split-window-below)
+(key-chord-define-global "ao" 'split-window-right)
+(key-chord-define-global "we" 'eval-region)
+(key-chord-define-global "ci" 'org-roam-node-insert)
+(key-chord-define-global "cf" 'org-roam-node-find)
