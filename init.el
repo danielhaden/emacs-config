@@ -18,9 +18,9 @@
 (use-package  command-log-mode)
 
 (use-package ivy
-  :diminish
+  :diminish                                       ;; diminish: don't show this package in mode line
   :bind (("C-s" . swiper)
-	 :map ivy-minibuffer-map
+         :map ivy-minibuffer-map
          ("TAB" . ivy-alt-done)
          ("C-l" . ivy-alt-done)
          ("C-j" . ivy-next-line)
@@ -32,7 +32,8 @@
          :map ivy-reverse-i-search-map
          ("C-k" . ivy-previous-line)
          ("C-d" . ivy-reverse-i-search-kill))
-  :config (ivy-mode 1))
+:config
+(ivy-mode 1))
 
 (use-package ivy-rich
   :init
@@ -86,7 +87,13 @@
 (drh/leader-keys
   "ts" '(hydra-text-scale/body :which-key "scale text"))
 
-(use-package key-chord)
+(use-package key-chord
+  :ensure nil
+  :load-path "~/.emacs.d/packages/key-chord.el"
+  :config
+  (setq key-chord-one-key-delay 0.2)
+  (setq key-chord-two-keys-delay 0.05))
+
 (key-chord-mode 1)
 (key-chord-define-global "xf" 'counsel-find-file)
 (key-chord-define-global "df" 'ivy-switch-buffer)
@@ -100,6 +107,11 @@
 (key-chord-define-global "cf" 'org-roam-node-find)
 (key-chord-define-global "qw" 'counsel-switch-buffer)
 (key-chord-define-global "eb" 'eval-buffer)
+(key-chord-define-global "fn" 'make-frame-command)
+(key-chord-define-global "fo" 'other-frame)
+(key-chord-define-global "zh" 'ellama-chat)
+(key-chord-define-global "tt" 'org-babel-tangle)
+(key-chord-define-global "sh" 'shell)
 
 (use-package racket-mode
   :ensure t)
@@ -145,6 +157,43 @@
   (org-indent-mode)
   (variable-pitch-mode 1)
   (visual-line-mode 1))
+
+(use-package ellama
+  :init
+  ;; setup key bindings
+  (setopt ellama-keymap-prefix "C-c e")
+  ;; language you want ellama to translate to
+  (require 'llm-ollama)
+  (setopt ellama-provider
+	  (make-llm-ollama
+	   ;; this model should be pulled to use it
+	   ;; value should be the same as you print in terminal during pull
+	   :chat-model "llama3.1:latest"))
+
+  ;; Predefined llm providers for interactive switching.
+  ;; You shouldn't add ollama providers here - it can be selected interactively
+  ;; without it. It is just example.
+  (setopt ellama-providers
+		    '(("zephyr" . (make-llm-ollama
+				   :chat-model "zephyr:7b-beta-q6_K"
+				   :embedding-model "zephyr:7b-beta-q6_K"))
+		      ("mistral" . (make-llm-ollama
+				    :chat-model "mistral:7b-instruct-v0.2-q6_K"
+				    :embedding-model "mistral:7b-instruct-v0.2-q6_K"))
+		      ("mixtral" . (make-llm-ollama
+				    :chat-model "mixtral:8x7b-instruct-v0.1-q3_K_M-4k"
+				    :embedding-model "mixtral:8x7b-instruct-v0.1-q3_K_M-4k"))))
+  ;; Naming new sessions with llm
+  (setopt ellama-naming-provider
+	  (make-llm-ollama
+	   :chat-model "llama3.1:latest"
+	   :embedding-model "nomic-embed-text"
+	   :default-chat-non-standard-params '(("stop" . ("\n")))))
+  (setopt ellama-naming-scheme 'ellama-generate-name-by-llm)
+  ;; Translation llm provider
+  (setopt ellama-translation-provider (make-llm-ollama
+				       :chat-model "phi3:14b-medium-128k-instruct-q6_K"
+				       :embedding-model "nomic-embed-text")))
 
 (use-package org
   :pin org
@@ -362,15 +411,14 @@
   :ensure t
   :config (add-hook 'prog-mode-hook 'rainbow-delimiters-mode))
 
-;; (use-package doom-themes
-;;  :init (load-theme 'doom-gruvbox t))
-
-;; (use-package doom-themes
-;;  :init (load-theme 'doom-lantern t))
-
 (use-package almost-mono-themes
 :config
 ;; (load-theme 'almost-mono-black t)
 ;; (load-theme 'almost-mono-gray t)
 ;; (load-theme 'almost-mono-white t)
 (load-theme 'almost-mono-cream t))
+
+(use-package doom-modeline
+  :ensure t
+  :init (doom-modeline-mode 1)
+  :custom ((doom-modeline-height 15)))
