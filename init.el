@@ -49,6 +49,24 @@
   :config
   (setq ivy-initial-inputs-alist nil)) ;; Don't start searches with ^
 
+(use-package flycheck)
+
+(use-package yasnippet
+:config (yas-global-mode))
+
+(use-package lsp-mode
+  :hook ((lsp-mode . lsp-enable-which-key-integration))
+  :config (setq lsp-completion-enable-additional-text-edit nil))
+
+(use-package lsp-ui)
+(use-package lsp-java :config (add-hook 'java-mode-hook 'lsp))
+(use-package lsp-treemacs)
+
+(use-package dap-mode :after lsp-mode :config (dap-auto-configure-mode))
+(use-package dap-java :ensure nil)
+
+(use-package company)
+
 (use-package helpful
   :commands (helpful-callable helpful-variable helpful-command helpful-key)
   :custom
@@ -92,8 +110,7 @@
   :load-path "~/.emacs.d/packages/key-chord.el"
   :config
   (setq key-chord-one-key-delay 0.2)
-  (setq key-chord-two-keys-delay 0.05))
-
+  (setq key-chord-two-keys-delay 0.07))
 (key-chord-mode 1)
 (key-chord-define-global "xf" 'counsel-find-file)
 (key-chord-define-global "df" 'ivy-switch-buffer)
@@ -112,6 +129,42 @@
 (key-chord-define-global "zh" 'ellama-chat)
 (key-chord-define-global "tt" 'org-babel-tangle)
 (key-chord-define-global "sh" 'shell)
+(key-chord-define-global "lq" 'drh/back-8-lines)
+(key-chord-define-global "lw" 'drh/back-32-lines)
+(key-chord-define-global "le" 'drh/back-128-lines)
+(key-chord-define-global ";q" 'drh/jump-8-lines)
+(key-chord-define-global ";w" 'drh/jump-32-lines)
+(key-chord-define-global ";e" 'drh/jump-128-lines)
+(key-chord-define-global ";;" 'goto-line)
+(key-chord-define-global "sk" 'kill-current-buffer)
+(key-chord-define-global "]d" 'org-agenda)
+
+(defun drh/jump-multiple-lines-forward (n)
+  (forward-line n))
+
+(defun drh/back-8-lines ()
+  (interactive)
+  (drh/jump-multiple-lines-forward -8))
+
+(defun drh/back-32-lines ()
+  (interactive)
+  (drh/jump-multiple-lines-forward -32))
+
+(defun drh/back-128-lines ()
+  (interactive)
+  (drh/jump-multiple-lines-forward -128))
+
+(defun drh/jump-8-lines ()
+  (interactive)
+  (drh/jump-multiple-lines-forward 8))
+
+(defun drh/jump-32-lines ()
+  (interactive)
+  (drh/jump-multiple-lines-forward 32))
+
+(defun drh/jump-128-lines ()
+  (interactive)
+  (drh/jump-multiple-lines-forward 128))
 
 (use-package racket-mode
   :ensure t)
@@ -123,21 +176,44 @@
 
 (use-package pollen-mode)
 
+(use-package tuareg
+    :ensure t
+    :mode (("\\.ocamlinit\\'" . taureg-mode)))
+
+  ;; Major mode for Dune project files
+  (use-package dune
+    :ensure t)
+
+;; Merlin provides advanced IDE features
+(use-package merlin
+  :ensure t
+  :config
+  (add-hook 'tuareg-mode-hook #'merlin-mode)
+  (add-hook 'merlin-mode-hook #'company-mode)
+  ;; we're using flycheck instead
+  (setq merlin-error-after-save nil))
+
 (defun drh/org-font-setup ()
   ;; Replace list hyphen with dot
   (font-lock-add-keywords 'org-mode
                           '(("^ *\\([-]\\) "
                              (0 (prog1 () (compose-region (match-beginning 1) (match-end 1) "•"))))))
 
+  (custom-theme-set-faces
+   'user
+   '(variable-pitch ((t (:family "Cardo"))))
+   '(fixed-pitch ((t (:family "Fira Code Retina")))))
+
+
   ;; Set faces for heading levels
-  (dolist (face '((org-level-1 . 1.2)
-                  (org-level-2 . 1.1)
-                  (org-level-3 . 1.05)
-                  (org-level-4 . 1.0)
-                  (org-level-5 . 1.1)
-                  (org-level-6 . 1.1)
-                  (org-level-7 . 1.1)
-                  (org-level-8 . 1.1)))
+  (dolist (face '((org-level-1 . 1.4)
+                  (org-level-2 . 1.3)
+                  (org-level-3 . 1.2)
+                  (org-level-4 . 1.1)
+                  (org-level-5 . 1.05)
+                  (org-level-6 . 1.05)
+                  (org-level-7 . 1.05)
+                  (org-level-8 . 1.05)))
     (set-face-attribute (car face) nil :weight 'regular :height (cdr face)))
 
   ;; Ensure that anything that should be fixed-pitch in Org files appears that way
@@ -201,23 +277,24 @@
   :hook (org-mode . drh/org-mode-setup)
   :config
   (setq org-ellipsis " ▾")
-
+     (setq org-hide-emphasis-markers t)  ;; hides markup elements like * and /
   (setq org-agenda-start-with-log-mode t)
   (setq org-log-done 'time)
   (setq org-log-into-drawer t)
 
   (setq org-agenda-files
-        '("~/projects/zettelkasten/tasks.org"
-	  "~/projects/active-projects/new-project-under-Dan.org"
-          "~/projects/zettelkasten/habits.org"))
+        '("~/zettelkasten/tasks.org"
+          "~/zettelkasten/habits.org"
+          "~/zettelkasten/archive.org"))
 
+     (setq org-archive-location '( "~/zettelkasten/tasks.org::"))
   (require 'org-habit)
   (add-to-list 'org-modules 'org-habit)
   (setq org-habit-graph-column 60)
 
+     ;; See here for org toggle commands
   (setq org-todo-keywords
-    '((sequence "TODO(t)" "NEXT(n)" "|" "DONE(d!)")
-      (sequence "BACKLOG(b)" "PLAN(p)" "READY(r)" "ACTIVE(a)" "REVIEW(v)" "WAIT(w@/!)" "HOLD(h)" "|" "COMPLETED(c)" "CANC(k@)")))
+    '((sequence "TODO" "ACTIVE" "ON HOLD" "DONE" "CANCELLED" "ARCHIVE")))
 
   (setq org-refile-targets
     '(("archive.org" :maxlevel . 1)
@@ -225,97 +302,6 @@
 
   ;; Save Org buffers after refiling!
   (advice-add 'org-refile :after 'org-save-all-org-buffers)
-
-  (setq org-tag-alist
-    '((:startgroup)
-       ; Put mutually exclusive tags here
-       (:endgroup)
-       ("@errand" . ?E)
-       ("@home" . ?H)
-       ("@work" . ?W)
-       ("agenda" . ?a)
-       ("planning" . ?p)
-       ("publish" . ?P)
-       ("batch" . ?b)
-       ("note" . ?n)
-       ("idea" . ?i)))
-
-  ;; Configure custom agenda views
-  (setq org-agenda-custom-commands
-   '(("d" "Dashboard"
-     ((agenda "" ((org-deadline-warning-days 7)))
-      (todo "NEXT"
-        ((org-agenda-overriding-header "Next Tasks")))
-      (tags-todo "agenda/ACTIVE" ((org-agenda-overriding-header "Active Projects")))))
-
-    ("n" "Next Tasks"
-     ((todo "NEXT"
-        ((org-agenda-overriding-header "Next Tasks")))))
-
-    ("W" "Work Tasks" tags-todo "+work-email")
-
-    ;; Low-effort next actions
-    ("e" tags-todo "+TODO=\"NEXT\"+Effort<15&+Effort>0"
-     ((org-agenda-overriding-header "Low Effort Tasks")
-      (org-agenda-max-todos 20)
-      (org-agenda-files org-agenda-files)))
-
-    ("w" "Workflow Status"
-     ((todo "WAIT"
-            ((org-agenda-overriding-header "Waiting on External")
-             (org-agenda-files org-agenda-files)))
-      (todo "REVIEW"
-            ((org-agenda-overriding-header "In Review")
-             (org-agenda-files org-agenda-files)))
-      (todo "PLAN"
-            ((org-agenda-overriding-header "In Planning")
-             (org-agenda-todo-list-sublevels nil)
-             (org-agenda-files org-agenda-files)))
-      (todo "BACKLOG"
-            ((org-agenda-overriding-header "Project Backlog")
-             (org-agenda-todo-list-sublevels nil)
-             (org-agenda-files org-agenda-files)))
-      (todo "READY"
-            ((org-agenda-overriding-header "Ready for Work")
-             (org-agenda-files org-agenda-files)))
-      (todo "ACTIVE"
-            ((org-agenda-overriding-header "Active Projects")
-             (org-agenda-files org-agenda-files)))
-      (todo "COMPLETED"
-            ((org-agenda-overriding-header "Completed Projects")
-             (org-agenda-files org-agenda-files)))
-      (todo "CANC"
-            ((org-agenda-overriding-header "Cancelled Projects")
-             (org-agenda-files org-agenda-files)))))))
-
-  (setq org-capture-templates
-    `(("t" "Tasks / Projects")
-      ("tt" "Task" entry (file+olp "~/Projects/Code/emacs-from-scratch/OrgFiles/Tasks.org" "Inbox")
-           "* TODO %?\n  %U\n  %a\n  %i" :empty-lines 1)
-
-      ("j" "Journal Entries")
-      ("jj" "Journal" entry
-           (file+olp+datetree "~/Projects/Code/emacs-from-scratch/OrgFiles/Journal.org")
-           "\n* %<%I:%M %p> - Journal :journal:\n\n%?\n\n"
-           ;; ,(dw/read-file-as-string "~/Notes/Templates/Daily.org")
-           :clock-in :clock-resume
-           :empty-lines 1)
-      ("jm" "Meeting" entry
-           (file+olp+datetree "~/Projects/Code/emacs-from-scratch/OrgFiles/Journal.org")
-           "* %<%I:%M %p> - %a :meetings:\n\n%?\n\n"
-           :clock-in :clock-resume
-           :empty-lines 1)
-
-      ("w" "Workflows")
-      ("we" "Checking Email" entry (file+olp+datetree "~/Projects/Code/emacs-from-scratch/OrgFiles/Journal.org")
-           "* Checking Email :email:\n\n%?" :clock-in :clock-resume :empty-lines 1)
-
-      ("m" "Metrics Capture")
-      ("mw" "Weight" table-line (file+headline "~/Projects/Code/emacs-from-scratch/OrgFiles/Metrics.org" "Weight")
-       "| %U | %^{Weight} | %^{Notes} |" :kill-buffer t)))
-
-  (define-key global-map (kbd "C-c j")
-    (lambda () (interactive) (org-capture nil "jj")))
 
   (drh/org-font-setup))
 
@@ -349,25 +335,10 @@
   :custom
   (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
 
-(use-package projectile
-  :diminish projectile-mode
-  :config (projectile-mode)
-  :custom ((projectile-completion-system 'ivy))
-  :bind-keymap
-  ("C-c p" . projectile-command-map)
-  :init
-  ;; NOTE: Set this to the folder where you keep your Git repos!
-  (when (file-directory-p "~/Projects/Code")
-    (setq projectile-project-search-path '("~/Projects/Code")))
-  (setq projectile-switch-project-action #'projectile-dired))
+(use-package projectile)
 
-(use-package counsel-projectile
-  :config (counsel-projectile-mode))
-
-;; (use-package exwm
-;;   :config
-;;   (setq exwm-workspace-number 5) ;; Set the default number of workspaces
-;;   (exwm-enable))
+(add-to-list 'exec-path "/usr/local/sbin")
+(add-to-list 'exec-path "/usr/local/bin")
 
 (defvar drh/default-font-size 150)
   (defvar drh/default-variable-font-size 150)
