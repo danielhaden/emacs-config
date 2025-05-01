@@ -15,7 +15,7 @@
 (require 'use-package)
 (setq use-package-always-ensure t)
 
-(use-package  command-log-mode)
+(use-package interaction-log)
 
 (use-package ivy
   :diminish                                       ;; diminish: don't show this package in mode line
@@ -54,16 +54,135 @@
 (use-package yasnippet
 :config (yas-global-mode))
 
+(use-package treemacs
+  :ensure t
+  :defer t
+  :init
+  (with-eval-after-load 'winum
+    (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
+  :config
+  (progn
+    (setq treemacs-collapse-dirs                   (if treemacs-python-executable 3 0)
+          treemacs-deferred-git-apply-delay        0.5
+          treemacs-directory-name-transformer      #'identity
+          treemacs-display-in-side-window          t
+          treemacs-eldoc-display                   'simple
+          treemacs-file-event-delay                2000
+          treemacs-file-extension-regex            treemacs-last-period-regex-value
+          treemacs-file-follow-delay               0.2
+          treemacs-file-name-transformer           #'identity
+          treemacs-follow-after-init               t
+          treemacs-expand-after-init               t
+          treemacs-find-workspace-method           'find-for-file-or-pick-first
+          treemacs-git-command-pipe                ""
+          treemacs-goto-tag-strategy               'refetch-index
+          treemacs-header-scroll-indicators        '(nil . "^^^^^^")
+          treemacs-hide-dot-git-directory          t
+          treemacs-indentation                     2
+          treemacs-indentation-string              " "
+          treemacs-is-never-other-window           nil
+          treemacs-max-git-entries                 5000
+          treemacs-missing-project-action          'ask
+          treemacs-move-files-by-mouse-dragging    t
+          treemacs-move-forward-on-expand          nil
+          treemacs-no-png-images                   nil
+          treemacs-no-delete-other-windows         t
+          treemacs-project-follow-cleanup          nil
+          treemacs-persist-file                    (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
+          treemacs-position                        'left
+          treemacs-read-string-input               'from-child-frame
+          treemacs-recenter-distance               0.1
+          treemacs-recenter-after-file-follow      nil
+          treemacs-recenter-after-tag-follow       nil
+          treemacs-recenter-after-project-jump     'always
+          treemacs-recenter-after-project-expand   'on-distance
+          treemacs-litter-directories              '("/node_modules" "/.venv" "/.cask")
+          treemacs-project-follow-into-home        nil
+          treemacs-show-cursor                     nil
+          treemacs-show-hidden-files               t
+          treemacs-silent-filewatch                nil
+          treemacs-silent-refresh                  nil
+          treemacs-sorting                         'alphabetic-asc
+          treemacs-select-when-already-in-treemacs 'move-back
+          treemacs-space-between-root-nodes        t
+          treemacs-tag-follow-cleanup              t
+          treemacs-tag-follow-delay                1.5
+          treemacs-text-scale                      nil
+          treemacs-user-mode-line-format           nil
+          treemacs-user-header-line-format         nil
+          treemacs-wide-toggle-width               70
+          treemacs-width                           35
+          treemacs-width-increment                 1
+          treemacs-width-is-initially-locked       t
+          treemacs-workspace-switch-cleanup        nil)
+
+    ;; The default width and height of the icons is 22 pixels. If you are
+    ;; using a Hi-DPI display, uncomment this to double the icon size.
+    ;;(treemacs-resize-icons 44)
+
+    (treemacs-follow-mode t)
+    (treemacs-filewatch-mode t)
+    (treemacs-fringe-indicator-mode 'always)
+    (when treemacs-python-executable
+      (treemacs-git-commit-diff-mode t))
+
+    (pcase (cons (not (null (executable-find "git")))
+                 (not (null treemacs-python-executable)))
+      (`(t . t)
+       (treemacs-git-mode 'deferred))
+      (`(t . _)
+       (treemacs-git-mode 'simple)))
+
+    (treemacs-hide-gitignored-files-mode nil))
+  :bind
+  (:map global-map
+        ("M-0"       . treemacs-select-window)
+        ("C-x t 1"   . treemacs-delete-other-windows)
+        ("C-x t t"   . treemacs)
+        ("C-x t d"   . treemacs-select-directory)
+        ("C-x t B"   . treemacs-bookmark)
+        ("C-x t C-t" . treemacs-find-file)
+        ("C-x t M-t" . treemacs-find-tag)))
+
+(use-package treemacs-evil
+  :after (treemacs evil)
+  :ensure t)
+
+(use-package treemacs-projectile
+  :after (treemacs projectile)
+  :ensure t)
+
+(use-package treemacs-icons-dired
+  :hook (dired-mode . treemacs-icons-dired-enable-once)
+  :ensure t)
+
+(use-package treemacs-magit
+  :after (treemacs magit)
+  :ensure t)
+
+(use-package treemacs-persp ;;treemacs-perspective if you use perspective.el vs. persp-mode
+  :after (treemacs persp-mode) ;;or perspective vs. persp-mode
+  :ensure t
+  :config (treemacs-set-scope-type 'Perspectives))
+
+(use-package treemacs-tab-bar ;;treemacs-tab-bar if you use tab-bar-mode
+  :after (treemacs)
+  :ensure t
+  :config (treemacs-set-scope-type 'Tabs))
+
+(treemacs-start-on-boot)
+
 (use-package lsp-mode
   :hook ((lsp-mode . lsp-enable-which-key-integration))
   :config (setq lsp-completion-enable-additional-text-edit nil))
 
 (use-package lsp-ui)
 (use-package lsp-java :config (add-hook 'java-mode-hook 'lsp))
-(use-package lsp-treemacs)
-
 (use-package dap-mode :after lsp-mode :config (dap-auto-configure-mode))
 (use-package dap-java :ensure nil)
+(use-package helm
+  :config (helm-mode))
+(use-package lsp-treemacs)
 
 (use-package company)
 
@@ -94,7 +213,7 @@
   "t"  '(:ignore t :which-key "toggles")
   "tt" '(counsel-load-theme :which-key "choose theme"))
 
-(use-package hydra)
+(use-package hydra )
 
 (defhydra hydra-text-scale (:timeout 4)
   "scale text"
@@ -120,8 +239,11 @@
 (key-chord-define-global "ai" 'split-window-below)
 (key-chord-define-global "ao" 'split-window-right)
 (key-chord-define-global "we" 'eval-region)
+;; org, org-roam
+(key-chord-define-global "cp" 'org-id-get-create)
 (key-chord-define-global "ci" 'org-roam-node-insert)
 (key-chord-define-global "cf" 'org-roam-node-find)
+(key-chord-define-global "cl" 'org-roam-db-sync)
 (key-chord-define-global "qw" 'counsel-switch-buffer)
 (key-chord-define-global "eb" 'eval-buffer)
 (key-chord-define-global "fn" 'make-frame-command)
@@ -138,6 +260,8 @@
 (key-chord-define-global ";;" 'goto-line)
 (key-chord-define-global "sk" 'kill-current-buffer)
 (key-chord-define-global "]d" 'org-agenda)
+(key-chord-define-global "lt" 'leo-translate-word)
+(key-chord-define-global "mf" 'make-frame)
 
 (defun drh/jump-multiple-lines-forward (n)
   (forward-line n))
@@ -234,6 +358,12 @@
   (variable-pitch-mode 1)
   (visual-line-mode 1))
 
+(use-package leo
+  :ensure nil
+  :load-path "~/.emacs.d/packages/emacs-leo"
+  :config
+  (setq leo-language "en"))
+
 (use-package ellama
   :init
   ;; setup key bindings
@@ -287,7 +417,7 @@
           "~/zettelkasten/habits.org"
           "~/zettelkasten/archive.org"))
 
-     (setq org-archive-location '( "~/zettelkasten/tasks.org::"))
+  (setq org-archive-location "~/zettelkasten/archive.org::")
   (require 'org-habit)
   (add-to-list 'org-modules 'org-habit)
   (setq org-habit-graph-column 60)
@@ -315,30 +445,100 @@
   :custom
   (org-roam-directory (file-truename "~/zettelkasten")))
 
+(use-package org-drill
+:ensure t)
+
 (require 'org-tempo)  ;; Needed as of Org 9.2
 
 (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
 (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
 (add-to-list 'org-structure-template-alist '("py" . "src python"))
+(add-to-list 'org-structure-template-alist '("jv" . "src java"))
+(add-to-list 'org-structure-template-alist '("clj" . "src clojure"))
 
 (org-babel-do-load-languages
 'org-babel-load-languages
 '((python . t)
   (shell . t)
-  (emacs-lisp . t)))
+  (emacs-lisp . t)
+  (clojure .t )))
 
 (setq org-babel-python-command "python3")
 
-(setq python-shell-interpreter "~/anaconda3/bin/python")
+(setq python-shell-interpreter "/usr/bin/python3")
+
+(use-package clojure-mode
+:ensure t
+:mode (("\\.clj\\'" . clojure-mode)
+       ("\\.edn\\'" . clojure-mode))
+:init
+(add-hook 'clojure-mode-hook #'yas-minor-mode)         
+(add-hook 'clojure-mode-hook #'linum-mode)             
+(add-hook 'clojure-mode-hook #'subword-mode)           
+(add-hook 'clojure-mode-hook #'smartparens-mode)       
+(add-hook 'clojure-mode-hook #'rainbow-delimiters-mode)
+(add-hook 'clojure-mode-hook #'eldoc-mode)             
+(add-hook 'clojure-mode-hook #'idle-highlight-mode))
+
+(use-package cider
+  :ensure t
+  :defer t
+  :init (add-hook 'cider-mode-hook #'clj-refactor-mode)
+  :diminish subword-mode
+  :config
+  (setq nrepl-log-messages t                  
+        cider-repl-display-in-current-window t
+        cider-repl-use-clojure-font-lock t    
+        cider-prompt-save-file-on-load 'always-save
+        cider-font-lock-dynamically '(macro core function var)
+        nrepl-hide-special-buffers t            
+        cider-overlays-use-font-lock t)         
+  (cider-repl-toggle-pretty-printing))
+
+(use-package cider-eval-sexp-fu
+  :defer t)
+
+(use-package clj-refactor
+  :defer t
+  :ensure t
+  :diminish clj-refactor-mode
+  :config (cljr-add-keybindings-with-prefix "C-c C-m"))
+
+(use-package smartparens
+  :defer t
+  :ensure t
+  :diminish smartparens-mode
+  :init
+  (setq sp-override-key-bindings
+        '(("C-<right>" . nil)
+          ("C-<left>" . nil)
+          ("C-)" . sp-forward-slurp-sexp)
+          ("M-<backspace>" . nil)
+          ("C-(" . sp-forward-barf-sexp)))
+  :config
+  (use-package smartparens-config)
+  (sp-use-smartparens-bindings)
+  (sp--update-override-key-bindings)
+  :commands (smartparens-mode show-smartparens-mode))
 
 (use-package magit
   :custom
   (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
 
-(use-package projectile)
+(use-package projectile
+  :diminish projectile-mode
+     :custom ((projectile-completion-system 'ivy)) 
+  :bind-keymap
+  ("C-c p" . projectile-command-map)
+  :init
+  (projectile-discover-projects-in-directory "~/projects/" 1))
+
+(use-package exec-path-from-shell
+:load-path "~/.emacs.d/packages/exec-path-from-shell.el")
 
 (add-to-list 'exec-path "/usr/local/sbin")
-(add-to-list 'exec-path "/usr/local/bin")
+(add-to-list 'exec-path "/usr/plocal/bin")
+(add-to-list 'exec-path "/opt/homebrew/bin")
 
 (defvar drh/default-font-size 150)
   (defvar drh/default-variable-font-size 150)
