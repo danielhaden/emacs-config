@@ -15,6 +15,11 @@
 (require 'use-package)
 (setq use-package-always-ensure t)
 
+(setq mac-option-key-is-meta nil
+      mac-command-key-is-meta t
+      mac-command-modifier 'meta
+      mac-option-modifier 'none)
+
 (use-package interaction-log)
 
 (use-package ivy
@@ -224,6 +229,9 @@
 (drh/leader-keys
   "ts" '(hydra-text-scale/body :which-key "scale text"))
 
+(use-package org-noter
+ :ensure t)
+
 (use-package key-chord
   :ensure nil
   :load-path "~/.emacs.d/packages/key-chord.el"
@@ -262,6 +270,7 @@
 (key-chord-define-global "]d" 'org-agenda)
 (key-chord-define-global "lt" 'leo-translate-word)
 (key-chord-define-global "mf" 'make-frame)
+(key-chord-define-global "jq" 'google-translate-at-point)
 
 (defun drh/jump-multiple-lines-forward (n)
   (forward-line n))
@@ -357,6 +366,15 @@
   (org-indent-mode)
   (variable-pitch-mode 1)
   (visual-line-mode 1))
+
+(use-package org-translate
+:ensure t)
+
+(use-package google-translate
+  :ensure t
+  :config
+  (setq google-translate-default-source-language "ru")
+  (setq google-translate-default-target-language "en"))
 
 (use-package leo
   :ensure nil
@@ -465,7 +483,7 @@
 
 (setq org-babel-python-command "python3")
 
-(setq python-shell-interpreter "/usr/bin/python3")
+(setq python-shell-interpreter "/Users/dhadenx6/.pyenv/shims/python")
 
 (use-package clojure-mode
 :ensure t
